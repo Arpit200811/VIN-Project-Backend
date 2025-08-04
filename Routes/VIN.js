@@ -1,80 +1,105 @@
-const express = require("express");
-const {Vin} = require("../Models/Vin");
-const verifyToken = require("./Middleware/authMiddleware");
+// Routes/VIN.js
+
+import express from 'express';
+import { Vin, VINLog } from '../models/VinModels.js'
+import { protect } from '../Middleware/authMiddleware.js';
+
 const router = express.Router();
 
-// ✅ Get all authorized VINs (protected)
-router.get("/vins", verifyToken, async (req, res) => {
-  const vins = await Vin.find({ isAuthorized: true });
-  res.json(vins);
+// ✅ GET: All authorized VINs (protected)
+router.get("/vins", protect, async (req, res) => {
+  try {
+    const vins = await Vin.find({ isAuthorized: true });
+    res.json(vins);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch VINs" });
+  }
 });
 
-// ✅ Add/update VIN (protected)
-router.post("/vins", verifyToken, async (req, res) => {
+// ✅ POST: Add or update a VIN (protected)
+router.post("/vins", protect, async (req, res) => {
   const { vin, isAuthorized } = req.body;
-  const found = await Vin.findOne({ vin });
-  if (found) {
-    found.isAuthorized = isAuthorized;
-    await found.save();
-    return res.json({ message: "VIN updated" });
+  try {
+    const found = await Vin.findOne({ vin });
+    if (found) {
+      found.isAuthorized = isAuthorized;
+      await found.save();
+      return res.json({ message: "VIN updated" });
+    }
+    await Vin.create({ vin, isAuthorized });
+    res.json({ message: "VIN added" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add/update VIN" });
   }
-  await Vin.create({ vin, isAuthorized });
-  res.json({ message: "VIN added" });
 });
 
-// ✅ Log VIN scan (open)
+// ✅ POST: Save scanned VIN to VINLog (open)
+router.post('/scan', async (req, res) => {
+  try {
+    const { vin, result, lat, lng } = req.body;
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    const newLog = new VINLog({
+      vin,
+      result,
+      ipAddress: ip,
+      location: {
+        latitude: lat,
+        longitude: lng,
+      },
+      scannedAt: new Date(),
+    });
+
+    await newLog.save();
+    res.status(201).json({ message: 'VIN scan saved with location and IP', data: newLog });
+  } catch (error) {
+    console.error('Error saving VIN scan:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ PUT: Log VIN scan in `Vin` model (open)
 router.put("/scan/:vin", async (req, res) => {
-  const vin = req.params.vin;
-  const { location } = req.body;
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  const found = await Vin.findOne({ vin });
-
-  if (!found || !found.isAuthorized) {
-    return res.status(403).json({ message: "Unauthorized VIN" });
-  }
-
-  found.scannedLogs.push({ timestamp: new Date(), ip, location });
-  await found.save();
-  res.json({ message: "Scan logged" });
-});
-
-// ✅ Get logs (protected)
-router.get("/logs", verifyToken, async (req, res) => {
-  const vins = await Vin.find({ scannedLogs: { $exists: true, $ne: [] } });
-  res.json(vins);
-});
-
-// PUT: Log scan with IP & GPS
-
-
-// PUT: Log scan with IP & GPS
-app.put("/api/vin/:vin", async (req, res) => {
   const vin = req.params.vin;
   const { location } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-  const found = await Vin.findOne({ vin });
-  if (!found || !found.isAuthorized) {
-    return res.status(403).json({ message: "Unauthorized VIN" });
+  try {
+    const found = await Vin.findOne({ vin });
+    if (!found || !found.isAuthorized) {
+      return res.status(403).json({ message: "Unauthorized VIN" });
+    }
+
+    found.scannedLogs.push({
+      timestamp: new Date(),
+      ip,
+      location,
+    });
+
+    await found.save();
+    res.json({ message: "Scan logged" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to log scan" });
   }
-
-  found.scannedLogs.push({
-    timestamp: new Date(),
-    ip,
-    location,
-  });
-
-  await found.save();
-  res.json({ message: "VIN logged successfully" });
 });
 
-// GET /api/logs?vin=XYZ123&from=2025-07-01&to=2025-07-22&location=Lucknow
-router.get("/logs", async (req, res) => {
+// ✅ GET: Logs from `Vin` model (protected)
+router.get("/logs", protect, async (req, res) => {
+  try {
+    const vins = await Vin.find({ scannedLogs: { $exists: true, $ne: [] } });
+    res.json(vins);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch logs" });
+  }
+});
+
+// ✅ GET: Filtered logs by VIN, date range, and location (open)
+router.get("/logs/filter", async (req, res) => {
   const { vin, from, to, location } = req.query;
 
   let query = {};
   if (vin) query.vin = vin;
-  if (location) query.location = { $regex: location, $options: "i" };
+  if (location) query['location.name'] = { $regex: location, $options: 'i' };
   if (from || to) {
     query.createdAt = {};
     if (from) query.createdAt.$gte = new Date(from);
@@ -85,10 +110,8 @@ router.get("/logs", async (req, res) => {
     const logs = await Vin.find(query).sort({ createdAt: -1 });
     res.json(logs);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch logs" });
+    res.status(500).json({ error: "Failed to fetch filtered logs" });
   }
 });
 
-
-
-module.exports = router;
+export default router;

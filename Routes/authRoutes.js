@@ -1,35 +1,44 @@
-const express = require("express");
+// routes/authRoutes.js
+import express from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import User from "../models/User.js";
+
+import {
+  loginWithOtp,
+  verifyOtp,
+  getUser,
+  protect
+} from "../Middleware/authMiddleware.js";
+
 const router = express.Router();
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const User = require("../Models/User");
 
-// 🔐 Signup
-router.post("/signup", async (req, res) => {
-  const { name, email, password, role } = req.body;
+// ✅ OTP Auth Routes
+router.post('/otp-login', loginWithOtp);
+router.post('/verify-otp', verifyOtp);
+router.get('/me', protect, getUser);
 
+// ✅ Signup
+router.post('/signup', async (req, res) => {
   try {
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: "User already exists." });
+    const { name, email, password } = req.body;
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: 'Email already registered' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || "user"
-    });
+    const user = new User({ name, email, password: hashedPassword });
 
-    res.json({ message: "Signup successful", user });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    await user.save();
+    res.status(201).json({ message: 'Signup successful' });
+  } catch (error) {
+    console.error('Signup Error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// 🔑 Login
+// ✅ Email/Password Login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-
   try {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials." });
@@ -49,4 +58,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
