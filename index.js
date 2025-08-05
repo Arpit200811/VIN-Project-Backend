@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 
 import DB_Connect from './DB_Config/DB_Connect.js'; // Connects to MongoDB
-import authRoutes from './routes/authRoutes.js';
+import authRoutes from './Routes/authRoutes.js';
 import vinRoutes from './Routes/VIN.js';
 import { Vin } from './models/VinModels.js'; // ✅ Works correctly
 import  router  from './Routes/VIN.js'
@@ -14,12 +14,9 @@ dotenv.config();
 
 // ✅ Initialize Express app
 const app = express();
-
-// ✅ Middlewares
 app.use(cors());
 app.use(express.json());
 app.use('/api',router)
-// ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/vin", vinRoutes);
 
