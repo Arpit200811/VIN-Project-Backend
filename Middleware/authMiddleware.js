@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import User from '../Models/User.js';
 
 // In-memory OTP storage (for demo purposes; use Redis or DB in production)
 const otpStore = new Map();

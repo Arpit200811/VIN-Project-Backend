@@ -5,7 +5,7 @@ import cors from 'cors';
 import DB_Connect from './DB_Config/DB_Connect.js'; // Connects to MongoDB
 import authRoutes from './Routes/authRoutes.js';
 import vinRoutes from './Routes/VIN.js';
-import { Vin } from './models/VinModels.js' // ✅ Works correctly
+import { Vin } from './Models/VinModels.js' 
 import  router  from './Routes/VIN.js'
  // 🛠️ Required for direct VIN access in route handlers
 

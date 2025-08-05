@@ -1,7 +1,7 @@
 // Routes/VIN.js
 
 import express from 'express';
-import { Vin, VINLog } from '../models/VinModels.js';
+import { Vin,VINLog } from '../Models/VinModels.js' 
 import { protect } from '../Middleware/authMiddleware.js';
 
 const router = express.Router();
