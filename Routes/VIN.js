@@ -1,7 +1,7 @@
 // Routes/VIN.js
 
 import express from 'express';
-import { Vin, VINLog } from '../models/VinModels.js'
+import { Vin, VINLog } from '../models/VinModels.js';
 import { protect } from '../Middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -20,7 +20,7 @@ router.get("/vins", protect, async (req, res) => {
 router.post("/vins", protect, async (req, res) => {
   const { vin, isAuthorized } = req.body;
   try {
-    const found = await Vin.findOne({ vin });
+    let found = await Vin.findOne({ vin });
     if (found) {
       found.isAuthorized = isAuthorized;
       await found.save();
@@ -33,12 +33,13 @@ router.post("/vins", protect, async (req, res) => {
   }
 });
 
-// ✅ POST: Save scanned VIN to VINLog (open)
+// ✅ POST: Scan handler – save to both VINLog and Vin model
 router.post('/scan', async (req, res) => {
   try {
     const { vin, result, lat, lng } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
+    // Save to VINLog collection
     const newLog = new VINLog({
       vin,
       result,
@@ -49,41 +50,30 @@ router.post('/scan', async (req, res) => {
       },
       scannedAt: new Date(),
     });
-
     await newLog.save();
-    res.status(201).json({ message: 'VIN scan saved with location and IP', data: newLog });
+
+    // Update `scannedLogs` array in VIN model
+    let existing = await Vin.findOne({ vin });
+    if (!existing) {
+      existing = new Vin({ vin });
+    }
+
+    existing.scannedLogs.push({
+      timestamp: new Date(),
+      ip,
+      location: lat && lng ? `${lat},${lng}` : "unknown",
+    });
+
+    await existing.save();
+
+    res.status(201).json({ message: 'Scan saved successfully', data: { vinLog: newLog } });
   } catch (error) {
     console.error('Error saving VIN scan:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// ✅ PUT: Log VIN scan in `Vin` model (open)
-router.put("/scan/:vin", async (req, res) => {
-  const vin = req.params.vin;
-  const { location } = req.body;
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-
-  try {
-    const found = await Vin.findOne({ vin });
-    if (!found || !found.isAuthorized) {
-      return res.status(403).json({ message: "Unauthorized VIN" });
-    }
-
-    found.scannedLogs.push({
-      timestamp: new Date(),
-      ip,
-      location,
-    });
-
-    await found.save();
-    res.json({ message: "Scan logged" });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to log scan" });
-  }
-});
-
-// ✅ GET: Logs from `Vin` model (protected)
+// ✅ GET: All VIN scan logs (protected)
 router.get("/logs", protect, async (req, res) => {
   try {
     const vins = await Vin.find({ scannedLogs: { $exists: true, $ne: [] } });
@@ -93,21 +83,22 @@ router.get("/logs", protect, async (req, res) => {
   }
 });
 
-// ✅ GET: Filtered logs by VIN, date range, and location (open)
+// ✅ GET: Filtered VIN logs (open)
 router.get("/logs/filter", async (req, res) => {
   const { vin, from, to, location } = req.query;
 
   let query = {};
+
   if (vin) query.vin = vin;
-  if (location) query['location.name'] = { $regex: location, $options: 'i' };
+  if (location) query["scannedLogs.location"] = { $regex: location, $options: 'i' };
   if (from || to) {
-    query.createdAt = {};
-    if (from) query.createdAt.$gte = new Date(from);
-    if (to) query.createdAt.$lte = new Date(to);
+    query["scannedLogs.timestamp"] = {};
+    if (from) query["scannedLogs.timestamp"].$gte = new Date(from);
+    if (to) query["scannedLogs.timestamp"].$lte = new Date(to);
   }
 
   try {
-    const logs = await Vin.find(query).sort({ createdAt: -1 });
+    const logs = await Vin.find(query).sort({ "scannedLogs.timestamp": -1 });
     res.json(logs);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch filtered logs" });
