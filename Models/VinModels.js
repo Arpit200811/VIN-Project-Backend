@@ -1,5 +1,3 @@
-// models/VinModels.js
-
 import mongoose from 'mongoose';
 
 // --- VINLog Schema ---
@@ -23,7 +21,7 @@ const VINLogSchema = new mongoose.Schema({
   },
 });
 
-export const VINLog = mongoose.model('VINLog', VINLogSchema);
+const VINLog = mongoose.model('VINLog', VINLogSchema);
 
 // --- VIN Schema ---
 const VinSchema = new mongoose.Schema({
@@ -46,11 +44,11 @@ const VinSchema = new mongoose.Schema({
         default: Date.now,
       },
       ip: String,
-      location: String, // plain text or "lat,lon"
+      location: String, // "lat,lng" or human-readable
     },
   ],
 });
 
-export const Vin = mongoose.model('Vin', VinSchema);
+const Vin = mongoose.model('Vin', VinSchema);
 
-// ✅ Export both models using ES module named export
+export { Vin, VINLog };

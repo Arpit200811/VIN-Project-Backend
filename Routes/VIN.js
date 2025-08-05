@@ -37,6 +37,8 @@ router.post("/vins", protect, async (req, res) => {
 router.post('/scan', async (req, res) => {
   try {
     const { vin, result, lat, lng } = req.body;
+    console.log(vin,result);
+    
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     // Save to VINLog collection
