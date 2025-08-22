@@ -4,10 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "node index.js",
-  "dev": "nodemon"
-},
-
+    "start": "node index.js",
+    "dev": "nodemon"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -17,10 +16,13 @@
     "@tensorflow/tfjs": "^4.22.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.4",
+    "mongoose": "^8.17.2",
+    "morgan": "^1.10.1",
     "nodemon": "^3.1.10"
   }
 }

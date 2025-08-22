@@ -1,54 +1,29 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-// --- VINLog Schema ---
-const VINLogSchema = new mongoose.Schema({
-  vin: {
-    type: String,
-    required: true,
+const VinSchema = new mongoose.Schema(
+  {
+    vin: { type: String, required: true, unique: true, index: true },
+    isAuthorized: { type: Boolean, default: false },
   },
-  result: {
-    type: String, // "metal" or "paper"
-    required: true,
-  },
-  ipAddress: String,
-  location: {
-    latitude: Number,
-    longitude: Number,
-  },
-  scannedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  { timestamps: true, versionKey: false }
+);
 
-const VINLog = mongoose.model('VINLog', VINLogSchema);
-
-// --- VIN Schema ---
-const VinSchema = new mongoose.Schema({
-  vin: {
-    type: String,
-    required: true,
-    unique: true,
-    minlength: 17,
-    maxlength: 17,
-    match: /^[A-HJ-NPR-Z0-9]{17}$/, // excludes I, O, Q
-  },
-  isAuthorized: {
-    type: Boolean,
-    default: false,
-  },
-  scannedLogs: [
-    {
-      timestamp: {
-        type: Date,
-        default: Date.now,
-      },
-      ip: String,
-      location: String, // "lat,lng" or human-readable
+ export const Vin = mongoose.model("Vin", VinSchema);
+const VinLogSchema = new mongoose.Schema(
+  {
+    vin: { type: String, required: true },
+    surface: { type: String, enum: ["metal", "paper", "other"], required: false },
+    probability: { type: Number, default: null },
+    location: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
     },
-  ],
-});
+    userAgent: { type: String },
+    ip: { type: String },
+    scannedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true, versionKey: false }
+);
 
-const Vin = mongoose.model('Vin', VinSchema);
-
-export { Vin, VINLog };
+export const VINLog = mongoose.model("VinLog", VinLogSchema);

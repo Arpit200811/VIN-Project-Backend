@@ -1,29 +1,41 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 
-import DB_Connect from './DB_Config/DB_Connect.js'; // Connects to MongoDB
-import authRoutes from './Routes/authRoutes.js';
-import vinRoutes from './Routes/VIN.js';
-import { Vin } from './Models/VinModels.js' 
-import  router  from './Routes/VIN.js'
- // 🛠️ Required for direct VIN access in route handlers
+import DB_Connect from "./DB_Config/DB_Connect.js"; // Custom DB connection util
+import authRoutes from "./Routes/authRoutes.js";
+import vinRoutes from "./Routes/VIN.js";
+import { Vin } from "./Models/VinModels.js";
+import router from "./Routes/VIN.js";
 
-// ✅ Load environment variables
 dotenv.config();
 
-// ✅ Initialize Express app
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use('/api',router)
+
+// ✅ Middlewares
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(morgan("dev"));
+
+// ✅ DB Connection
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/vin_db";
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((e) => console.error("Mongo error:", e.message));
+
+// ✅ Health Check
+app.get("/", (_req, res) => res.json({ ok: true }));
+
+// ✅ Routes
+app.use("/api", router);
 app.use("/api/auth", authRoutes);
 app.use("/api/vin", vinRoutes);
 
-// ✅ VIN Management Routes (Admin + Log Scanning)
-
-// Get all authorized VINs
-app.get("/api/vins", async (req, res) => {
+// 🔹 VIN Management Routes
+app.get("/api/vins", async (_req, res) => {
   try {
     const vins = await Vin.find({ isAuthorized: true });
     res.json(vins);
@@ -32,7 +44,6 @@ app.get("/api/vins", async (req, res) => {
   }
 });
 
-// Add or update VIN (Admin Panel)
 app.post("/api/admin/vins", async (req, res) => {
   const { vin, isAuthorized } = req.body;
   try {
@@ -50,7 +61,6 @@ app.post("/api/admin/vins", async (req, res) => {
   }
 });
 
-// Log VIN scan
 app.put("/api/vin/:vin", async (req, res) => {
   const vin = req.params.vin;
   const { location } = req.body;
@@ -76,20 +86,27 @@ app.put("/api/vin/:vin", async (req, res) => {
   }
 });
 
-// View all scan logs
-app.get("/api/admin/logs", async (req, res) => {
+app.get("/api/admin/logs", async (_req, res) => {
   try {
-    const vins = await Vin.find({ scannedLogs: { $exists: true, $ne: [] } });
+    const vins = await Vin.find({
+      scannedLogs: { $exists: true, $ne: [] },
+    });
     res.json(vins);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// ✅ Global Error Handler
+app.use((err, _req, res, _next) => {
+  console.error("Unhandled:", err);
+  res.status(500).json({ message: "Server error" });
+});
+
 // ✅ Start server after DB connects
 DB_Connect().then(() => {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
   });
 });
