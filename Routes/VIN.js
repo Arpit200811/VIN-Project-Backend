@@ -1,13 +1,13 @@
+// server/routes/vinRoutes.js
 import express from "express";
 import { saveVIN } from "../Controller/vinController.js";
-import {Vin} from "../Models/VinModels.js";
-import {VINLog} from "../Models/VinModels.js"; 
+import { Vin, VINLog } from "../Models/VinModels.js";
 import { protect } from "../Middleware/authMiddleware.js";
 
 const router = express.Router();
 
 /**
- * ✅ POST: Scan VIN & Save (with validations)
+ * ✅ POST: Scan VIN & Save (validations handled in Controller)
  */
 router.post("/scan", saveVIN);
 
@@ -52,7 +52,9 @@ router.post("/vins", protect, async (req, res) => {
 router.post("/scan-log", async (req, res) => {
   try {
     const { vin, result, lat, lng, userAgent } = req.body;
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+    const ip =
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.socket.remoteAddress;
 
     // Save to VINLog collection
     const newLog = new VINLog({
@@ -111,7 +113,8 @@ router.get("/logs/filter", async (req, res) => {
   let query = {};
 
   if (vin) query.vin = vin;
-  if (location) query["scannedLogs.location"] = { $regex: location, $options: "i" };
+  if (location)
+    query["scannedLogs.location"] = { $regex: location, $options: "i" };
   if (from || to) {
     query["scannedLogs.timestamp"] = {};
     if (from) query["scannedLogs.timestamp"].$gte = new Date(from);
